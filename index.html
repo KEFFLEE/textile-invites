@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מחולל הזמנות | המחלקה לעיצוב טקסטיל, שנקר</title>
+<style>
+@font-face{font-family:"TexTitle";src:local("Narkis Block Black"),url("fonts/NarkisBlock-Black.ttf") format("truetype"),url("fonts/NarkisBlock-Medium.ttf") format("truetype");}
+@font-face{font-family:"TexMed";src:url("fonts/NarkisBlock-Medium.ttf") format("truetype");}
+@font-face{font-family:"TexReg";src:url("fonts/NarkisBlock-Regular.ttf") format("truetype");}
+@font-face{font-family:"TexThin";src:url("fonts/NarkisBlock-Thin.ttf") format("truetype");}
+@font-face{font-family:"TexEn";src:url("fonts/FranklinGothic.ttf") format("truetype");}
+@font-face{font-family:"TexEnCond";src:url("fonts/FranklinGothic-Condensed.ttf") format("truetype");}
+
+:root{--red1:#FF4141;--red2:#FF0000;--grey:#F5F5F5;--black:#000;--line:#e2e2e2;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"TexReg",system-ui,sans-serif;color:#000;background:#fff;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--red2)}
+header h1{font-family:"TexMed";font-weight:normal;font-size:22px;margin:0}
+header h1 span{color:var(--red1)}
+header .logo{height:22px}
+main{flex:1;display:flex;min-height:0}
+#panel{width:400px;flex:none;overflow-y:auto;padding:24px 32px 40px;border-left:1px solid var(--line)}
+#stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--grey);padding:32px;min-width:0;gap:16px}
+#canvasWrap{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
+canvas#out{max-width:100%;max-height:100%;box-shadow:0 2px 24px rgba(0,0,0,.12);background:#fff;cursor:grab}
+canvas#out.dragging{cursor:grabbing}
+.hint{font-family:"TexThin";font-size:14px;color:#555}
+section{margin-bottom:26px}
+section>h2{font-family:"TexMed";font-weight:normal;font-size:15px;color:var(--red1);margin:0 0 10px;padding-top:10px;border-top:1px solid #000}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:14px;border:1px solid #000;background:#fff;padding:7px 12px;cursor:pointer;line-height:1.1}
+.chip small{display:block;font-family:"TexThin";font-size:11px;margin-top:2px}
+.chip[aria-pressed="true"]{background:#000;color:#fff}
+.chip:hover{border-color:var(--red1)}
+label.f{display:block;margin-bottom:10px;font-size:13px}
+label.f span{display:block;margin-bottom:4px;font-family:"TexMed"}
+input[type=text],textarea{width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1px solid #bbb;background:#fff;border-radius:0}
+textarea{resize:vertical;min-height:58px;line-height:1.35}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--red1)}
+input[type=range]{width:100%;accent-color:var(--red1)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0;cursor:pointer}
+.toggle input{accent-color:var(--red1);width:16px;height:16px}
+.btn{font:inherit;font-family:"TexMed";font-size:15px;padding:11px 16px;border:1px solid #000;background:#fff;cursor:pointer;width:100%;margin-bottom:8px}
+.btn.primary{background:var(--red1);border-color:var(--red1);color:#000}
+.btn:hover{filter:brightness(.95)}
+.file{display:block;border:1px dashed #000;padding:14px;text-align:center;cursor:pointer;font-size:14px;margin-bottom:10px}
+.file:hover{border-color:var(--red1);color:var(--red1)}
+.file input{display:none}
+.muted{font-family:"TexThin";font-size:12px;color:#666;line-height:1.4}
+#photoCtl[hidden]{display:none}
+@media (max-width:860px){main{flex-direction:column-reverse}#panel{width:auto;border:0}#stage{min-height:60vh}}
+</style>
+</head>
+<body>
+<header>
+  <h1>מחולל הזמנות <span>|</span> המחלקה לעיצוב טקסטיל</h1>
+  <img class="logo" id="hdrLogo" alt="TEXTILE">
+</header>
+<main>
+  <aside id="panel">
+    <section>
+      <h2>1. סוג האירוע</h2>
+      <div class="chips" id="tplChips"></div>
+    </section>
+    <section>
+      <h2>2. פורמט</h2>
+      <div class="chips" id="fmtChips"></div>
+    </section>
+    <section>
+      <h2>3. רקע</h2>
+      <div class="chips" id="bgChips"></div>
+      <div id="photoArea" style="margin-top:12px">
+        <label class="file"><input type="file" id="photoIn" accept="image/*">העלאת תמונה (או גרירה לכאן)</label>
+        <div id="photoCtl" hidden>
+          <label class="f"><span>זום</span><input type="range" id="pZoom" min="1" max="3" step="0.01" value="1"></label>
+          <label class="f"><span>הכהיה</span><input type="range" id="pDark" min="0" max="0.75" step="0.01" value="0.3"></label>
+          <p class="muted">אפשר לגרור את התמונה ישירות על התצוגה כדי למקם אותה.</p>
+          <button class="btn" id="pRemove" type="button">הסרת התמונה</button>
+        </div>
+        <label class="f"><span>קרדיט לתמונה</span><input type="text" id="credit" placeholder="עבודה: שם הסטודנטית | צילום: שם הצלם/ת"></label>
+      </div>
+    </section>
+    <section>
+      <h2>4. תוכן</h2>
+      <div id="fields"></div>
+    </section>
+    <section>
+      <h2>5. חתימה וגרפיקה</h2>
+      <div class="chips" id="logoChips"></div>
+      <label class="toggle"><input type="checkbox" id="gridOn" checked>קווי גריד אדומים</label>
+    </section>
+    <section>
+      <h2>6. הורדה</h2>
+      <button class="btn primary" id="dlPng" type="button">הורדת PNG</button>
+      <button class="btn" id="dlPdf" type="button">הורדת PDF (להדפסה)</button>
+      <button class="btn" id="dlAll" type="button">הורדת כל 4 הפורמטים</button>
+      <p class="muted">הקבצים נוצרים בדפדפן שלכם בלבד — שום תמונה או טקסט לא נשלחים לשרת.</p>
+    </section>
+  </aside>
+  <div id="stage">
+    <div id="canvasWrap"><canvas id="out"></canvas></div>
+    <div class="hint" id="sizeHint"></div>
+  </div>
+</main>
+<script src="logos.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
