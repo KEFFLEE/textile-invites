@@ -24,7 +24,6 @@ const BGS = {
 const LOGO_MODES = {
   compact: 'TEXTILE + שנקר',
   full:    'חתימה תלת-לשונית',
-  textile: 'TEXTILE בלבד',
 };
 
 const TEMPLATES = {
@@ -79,6 +78,7 @@ try {
   const saved = JSON.parse(localStorage.getItem('tex-invite') || 'null');
   if (saved) {
     for (const k of ['tpl','fmt','logo','grid','credit','dark']) if (k in saved) S[k] = saved[k];
+    if (!(S.logo in LOGO_MODES)) S.logo = 'compact';
     if (saved.bg) Object.assign(S.bg, saved.bg);
     if (saved.values) for (const k in saved.values) if (S.values[k]) Object.assign(S.values[k], saved.values[k]);
   }
@@ -256,7 +256,6 @@ function footerLogos(P, g, color, yBottom) {
   }
   const hW = 46 * u;
   P.logo('wordmark', color, m, yBottom - hW, hW);
-  if (S.logo === 'textile') return yBottom - hW;
   const hS = 52 * u;
   const wS = hS * aspect('shenkar');
   P.logo('shenkar', color, W - m - wS, yBottom - hS, hS);
