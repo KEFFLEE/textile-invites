@@ -68,7 +68,8 @@ const TEMPLATES = {
 /* ---------- מצב ---------- */
 const S = {
   tpl:'openday', fmt:'square', bg:{}, logo:'compact', grid:true, credit:'',
-  values:{}, photo:null, zoom:1, ox:0, oy:0, dark:0.3,
+  values:{}, photo:null, dark:0.3,
+  img:{ zoom:1, px:0, py:0, rot:0, flip:false, fit:'cover', op:1, blend:'source-over', gray:false, base:'#000000' },
 };
 for (const [k,t] of Object.entries(TEMPLATES)) {
   S.bg[k] = t.defBg;
@@ -78,13 +79,14 @@ try {
   const saved = JSON.parse(localStorage.getItem('tex-invite') || 'null');
   if (saved) {
     for (const k of ['tpl','fmt','logo','grid','credit','dark']) if (k in saved) S[k] = saved[k];
+    if (saved.img) for (const k of ['fit','op','blend','gray','base']) if (k in saved.img) S.img[k] = saved.img[k];
     if (!(S.logo in LOGO_MODES)) S.logo = 'compact';
     if (saved.bg) Object.assign(S.bg, saved.bg);
     if (saved.values) for (const k in saved.values) if (S.values[k]) Object.assign(S.values[k], saved.values[k]);
   }
 } catch (e) { /* אין אחסון — ממשיכים */ }
 function persist() {
-  try { localStorage.setItem('tex-invite', JSON.stringify({tpl:S.tpl, fmt:S.fmt, logo:S.logo, grid:S.grid, credit:S.credit, dark:S.dark, bg:S.bg, values:S.values})); } catch (e) {}
+  try { localStorage.setItem('tex-invite', JSON.stringify({tpl:S.tpl, fmt:S.fmt, logo:S.logo, grid:S.grid, credit:S.credit, dark:S.dark, img:S.img, bg:S.bg, values:S.values})); } catch (e) {}
 }
 
 /* ---------- לוגואים ---------- */
@@ -206,20 +208,29 @@ function makePainter(ctx, W, H, draw) {
 }
 
 /* ---------- תמונה ---------- */
-let photoRect = null;   // לחישוב גרירה
+const PHOTO_BASES = [['#000000','שחור'],[C.red1,'אדום'],[C.grey,'אפור'],[C.white,'לבן']];
+let photoRect = null;   // אזור התמונה האחרון (לגרירה ויישור)
+function photoGeom(R) {
+  const I = S.img, iw = S.photo.naturalWidth, ih = S.photo.naturalHeight;
+  const fitS = I.fit === 'contain' ? Math.min(R.w / iw, R.h / ih) : Math.max(R.w / iw, R.h / ih);
+  const sc = fitS * I.zoom;
+  return { dw: iw * sc, dh: ih * sc, cx: R.x + R.w / 2 + I.px * R.w, cy: R.y + R.h / 2 + I.py * R.h };
+}
 function drawPhoto(P, x, y, w, h, darkOverlay) {
   photoRect = { x, y, w, h };
   if (!P.draw) return;
-  const ctx = P.ctx;
+  const ctx = P.ctx, I = S.img;
   ctx.save();
   ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
   if (S.photo) {
-    const iw = S.photo.naturalWidth, ih = S.photo.naturalHeight;
-    const sc = Math.max(w / iw, h / ih) * S.zoom;
-    const dw = iw * sc, dh = ih * sc;
-    photoRect.dw = dw; photoRect.dh = dh;
-    const dx = x + (w - dw) * (0.5 + S.ox / 2), dy = y + (h - dh) * (0.5 + S.oy / 2);
-    ctx.drawImage(S.photo, dx, dy, dw, dh);
+    ctx.fillStyle = I.base; ctx.fillRect(x, y, w, h);
+    const G = photoGeom(photoRect);
+    ctx.save();
+    ctx.globalAlpha = I.op; ctx.globalCompositeOperation = I.blend;
+    if (I.gray) ctx.filter = 'grayscale(1)';
+    ctx.translate(G.cx, G.cy); ctx.rotate((I.rot || 0) * Math.PI / 180); if (I.flip) ctx.scale(-1, 1);
+    ctx.drawImage(S.photo, -G.dw / 2, -G.dh / 2, G.dw, G.dh);
+    ctx.restore();
   } else {
     weave(ctx, x, y, w, h, Math.min(P.W, P.H) / 1080);
   }
@@ -519,6 +530,7 @@ function buildUI() {
   $('gridOn').checked = S.grid;
   $('credit').value = S.credit;
   $('pDark').value = S.dark;
+  syncPhotoUI();
   const f = FORMATS[S.fmt];
   $('sizeHint').textContent = `${f.name} · ${f.w}x${f.h} פיקסלים` + (f.story ? ' · השוליים העליונים והתחתונים שמורים לממשק של אינסטגרם' : '');
 }
@@ -529,39 +541,75 @@ function update() {
   raf = requestAnimationFrame(() => { render(out, S.fmt); persist(); });
 }
 
-/* תמונה: העלאה, גרירה למיקום */
+/* תמונה: העלאה, שליטה, גרירה */
+const resetPos = () => Object.assign(S.img, { zoom:1, px:0, py:0, rot:0, flip:false });
 function loadPhoto(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const img = new Image();
-  img.onload = () => { S.photo = img; S.zoom = 1; S.ox = 0; S.oy = 0; $('pZoom').value = 1; buildUI(); update(); };
+  img.onload = () => { S.photo = img; resetPos(); buildUI(); update(); };
   img.src = URL.createObjectURL(file);
 }
-$('photoIn').onchange = e => loadPhoto(e.target.files[0]);
+function syncPhotoUI() {
+  const I = S.img;
+  $('pZoom').value = I.zoom; $('pRot').value = I.rot; $('pPx').value = I.px; $('pPy').value = I.py;
+  $('pFlip').checked = I.flip; $('pOp').value = I.op; $('pBlend').value = I.blend; $('pGray').checked = I.gray;
+  $('vZoom').textContent = Math.round(I.zoom * 100) + '%'; $('vRot').textContent = I.rot + '°';
+  document.querySelectorAll('#pFit .chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.v === I.fit));
+  chips($('pBase'), PHOTO_BASES, I.base, k => { S.img.base = k; syncPhotoUI(); update(); });
+}
+const imgSet = (k, v) => { S.img[k] = v; syncPhotoUI(); update(); };
+$('photoIn').onchange = e => { loadPhoto(e.target.files[0]); e.target.value = ''; };
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => { e.preventDefault(); if (S.tpl !== 'submission' && S.bg[S.tpl] !== 'photo') { S.bg[S.tpl] = 'photo'; } loadPhoto(e.dataTransfer.files[0]); });
-$('pZoom').oninput = e => { S.zoom = +e.target.value; update(); };
+$('pZoom').oninput = e => imgSet('zoom', +e.target.value);
+$('pRot').oninput  = e => imgSet('rot', +e.target.value);
+$('pPx').oninput   = e => imgSet('px', +e.target.value);
+$('pPy').oninput   = e => imgSet('py', +e.target.value);
+$('pOp').oninput   = e => imgSet('op', +e.target.value);
+$('pFlip').onchange  = e => imgSet('flip', e.target.checked);
+$('pGray').onchange  = e => imgSet('gray', e.target.checked);
+$('pBlend').onchange = e => imgSet('blend', e.target.value);
+$('pReset').onclick = () => { resetPos(); syncPhotoUI(); update(); };
+document.querySelectorAll('#pFit .chip').forEach(b => b.onclick = () => { S.img.fit = b.dataset.v; S.img.zoom = 1; syncPhotoUI(); update(); });
+for (const ay of [-1, 0, 1]) for (const ax of [-1, 0, 1]) {
+  const b = document.createElement('button'); b.type = 'button'; b.title = 'יישור התמונה';
+  b.onclick = () => {
+    if (!S.photo || !photoRect) return;
+    const G = photoGeom(photoRect);
+    S.img.px = ax * (photoRect.w - G.dw) / (2 * photoRect.w);
+    S.img.py = ay * (photoRect.h - G.dh) / (2 * photoRect.h);
+    syncPhotoUI(); update();
+  };
+  $('pAnchor').appendChild(b);
+}
 $('pDark').oninput = e => { S.dark = +e.target.value; update(); };
 $('pRemove').onclick = () => { S.photo = null; buildUI(); update(); };
 $('credit').oninput = e => { S.credit = e.target.value; update(); };
 $('gridOn').onchange = e => { S.grid = e.target.checked; update(); };
 
+const clampP = v => Math.max(-1.5, Math.min(1.5, v));
 let drag = null;
 out.addEventListener('pointerdown', e => {
-  if (!S.photo || !photoRect || !photoRect.dw) return;
-  drag = { x:e.clientX, y:e.clientY, ox:S.ox, oy:S.oy };
+  if (!S.photo || !photoRect) return;
+  drag = { x:e.clientX, y:e.clientY, px:S.img.px, py:S.img.py };
   out.setPointerCapture(e.pointerId); out.classList.add('dragging');
 });
 out.addEventListener('pointermove', e => {
   if (!drag) return;
   const k = out.width / out.getBoundingClientRect().width;
-  const ex = photoRect.w - photoRect.dw, ey = photoRect.h - photoRect.dh;
-  if (ex < -1) S.ox = Math.max(-1, Math.min(1, drag.ox + (e.clientX - drag.x) * k * 2 / ex));
-  if (ey < -1) S.oy = Math.max(-1, Math.min(1, drag.oy + (e.clientY - drag.y) * k * 2 / ey));
-  update();
+  S.img.px = clampP(drag.px + (e.clientX - drag.x) * k / photoRect.w);
+  S.img.py = clampP(drag.py + (e.clientY - drag.y) * k / photoRect.h);
+  syncPhotoUI(); update();
 });
 const endDrag = () => { drag = null; out.classList.remove('dragging'); };
 out.addEventListener('pointerup', endDrag);
 out.addEventListener('pointercancel', endDrag);
+out.addEventListener('wheel', e => {
+  if (!S.photo || !photoRect) return;
+  e.preventDefault();
+  S.img.zoom = Math.max(0.2, Math.min(4, S.img.zoom * Math.exp(-e.deltaY * 0.0015)));
+  syncPhotoUI(); update();
+}, { passive:false });
 
 /* ייצוא */
 function fileBase(fmtKey) {

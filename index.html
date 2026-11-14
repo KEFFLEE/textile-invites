@@ -50,6 +50,11 @@ input[type=range]{width:100%;accent-color:var(--red1)}
 .file:hover{border-color:var(--red1);color:var(--red1)}
 .file input{display:none}
 .muted{font-family:"TexThin";font-size:12px;color:#666;line-height:1.4}
+select{font:inherit;font-size:14px;width:100%;padding:8px;border:1px solid #000;background:#fff;margin-top:2px}
+.val{font-family:"TexThin";font-weight:normal;color:#666;margin-inline-start:6px}
+.anchor{display:grid;grid-template-columns:repeat(3,22px);gap:4px;margin-top:2px}
+.anchor button{width:22px;height:22px;border:1px solid #000;background:#fff;cursor:pointer;padding:0}
+.anchor button:hover{background:var(--red1);border-color:var(--red1)}
 #photoCtl[hidden]{display:none}
 @media (max-width:860px){main{flex-direction:column-reverse}#panel{width:auto;border:0}#stage{min-height:60vh}}
 </style>
@@ -75,10 +80,40 @@ input[type=range]{width:100%;accent-color:var(--red1)}
       <div id="photoArea" style="margin-top:12px">
         <label class="file"><input type="file" id="photoIn" accept="image/*">העלאת תמונה (או גרירה לכאן)</label>
         <div id="photoCtl" hidden>
-          <label class="f"><span>זום</span><input type="range" id="pZoom" min="1" max="3" step="0.01" value="1"></label>
-          <label class="f"><span>הכהיה</span><input type="range" id="pDark" min="0" max="0.75" step="0.01" value="0.3"></label>
-          <p class="muted">אפשר לגרור את התמונה ישירות על התצוגה כדי למקם אותה.</p>
-          <button class="btn" id="pRemove" type="button">הסרת התמונה</button>
+          <p class="muted">גוררים את התמונה על התצוגה כדי למקם אותה · גלגלת העכבר מגדילה ומקטינה.</p>
+          <label class="f"><span>התאמה לאזור</span></label>
+          <div class="chips" id="pFit" style="margin-bottom:12px">
+            <button class="chip" type="button" data-v="cover">מילוי (חיתוך)</button>
+            <button class="chip" type="button" data-v="contain">תמונה שלמה</button>
+          </div>
+          <div class="row" style="align-items:flex-start">
+            <div style="flex:0 0 auto"><label class="f"><span>יישור</span></label><div class="anchor" id="pAnchor"></div></div>
+            <div>
+              <label class="f"><span>זום <b class="val" id="vZoom"></b></span><input type="range" id="pZoom" min="0.2" max="4" step="0.01" value="1"></label>
+              <label class="f"><span>סיבוב <b class="val" id="vRot"></b></span><input type="range" id="pRot" min="-180" max="180" step="0.5" value="0"></label>
+            </div>
+          </div>
+          <label class="f"><span>מיקום אופקי</span><input type="range" dir="ltr" id="pPx" min="-1" max="1" step="0.002" value="0"></label>
+          <label class="f"><span>מיקום אנכי</span><input type="range" id="pPy" min="-1" max="1" step="0.002" value="0"></label>
+          <div class="row" style="align-items:center;margin-bottom:10px">
+            <label class="toggle" style="margin:0"><input type="checkbox" id="pFlip">היפוך מראה</label>
+            <button class="btn" id="pReset" type="button" style="margin:0;padding:7px 12px;font-size:14px">איפוס מיקום</button>
+          </div>
+          <label class="f"><span>שקיפות</span><input type="range" id="pOp" min="0" max="1" step="0.01" value="1"></label>
+          <label class="f"><span>הכהיה (לטקסט בהיר על תמונה)</span><input type="range" id="pDark" min="0" max="0.8" step="0.01" value="0.3"></label>
+          <label class="f"><span>צבע בסיס מתחת לתמונה</span></label>
+          <div class="chips" id="pBase" style="margin-bottom:12px"></div>
+          <label class="f"><span>מיזוג עם צבע הבסיס</span>
+            <select id="pBlend">
+              <option value="source-over">רגיל</option>
+              <option value="multiply">Multiply – צביעה בצבע הבסיס</option>
+              <option value="luminosity">Luminosity – גווני הבסיס</option>
+              <option value="screen">Screen – הבהרה</option>
+              <option value="overlay">Overlay – ניגודיות</option>
+            </select>
+          </label>
+          <label class="toggle"><input type="checkbox" id="pGray">שחור-לבן</label>
+          <button class="btn" id="pRemove" type="button" style="margin-top:8px">הסרת התמונה</button>
         </div>
         <label class="f"><span>קרדיט לתמונה</span><input type="text" id="credit" placeholder="עבודה: שם הסטודנטית | צילום: שם הצלם/ת"></label>
       </div>
