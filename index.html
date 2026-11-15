@@ -16,7 +16,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:"TexReg",system-ui,sans-serif;color:#000;background:#fff;display:flex;flex-direction:column}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--red2)}
+header{display:flex;align-items:center;padding:18px 32px;border-bottom:1px solid var(--red2)}
 header h1{font-family:"TexMed";font-weight:normal;font-size:22px;margin:0}
 header h1 span{color:var(--red1)}
 header .logo{height:34px}
@@ -57,14 +57,59 @@ select{font:inherit;font-size:14px;width:100%;padding:8px;border:1px solid #000;
 .anchor button:hover{background:var(--red1);border-color:var(--red1)}
 #photoCtl[hidden]{display:none}
 @media (max-width:860px){main{flex-direction:column-reverse}#panel{width:auto;border:0}#stage{min-height:60vh}}
+
+.tabs{display:flex;margin-inline-start:24px;margin-inline-end:auto}
+.tabs button{font:inherit;font-family:"TexMed";font-size:15px;border:1px solid #000;background:#fff;padding:7px 16px;cursor:pointer}
+.tabs button+button{border-right:0}
+.tabs button.on{background:#000;color:#fff}
+#warn{display:none;background:#000;color:#fff;font-size:13px;padding:7px 14px}
+.colors{margin-top:12px;align-items:flex-end}
+.colors label{font-family:"TexMed";font-size:13px;display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
+.colors input[type=color]{width:44px;height:32px;border:1px solid #bbb;padding:1px;background:#fff;cursor:pointer}
+.btn.small{font-size:13px;padding:7px 10px;margin:0;width:auto;flex:1}
+.btn.dark{background:#000;color:#fff}
+.btns{display:flex;gap:6px}.btns>.btn{flex:1;width:auto}
+.field{border:1px solid var(--line);padding:10px;margin-bottom:8px}
+.field .fh{display:flex;justify-content:space-between;align-items:center;font-family:"TexMed";font-size:13px;margin-bottom:6px}
+.field .fh button{font:inherit;font-size:12px;border:0;background:none;cursor:pointer;color:#555;padding:0;text-decoration:underline}
+.field .fx{display:none;margin-top:10px;flex-direction:column;gap:8px}
+.field.open .fx{display:flex}
+.field.custom .fh button{color:var(--red1)}
+.sw{display:flex;flex-wrap:wrap;gap:4px}
+.sw button{font:inherit;font-size:11px;border:1px solid #ccc;background:#fff;padding:3px 7px 3px 5px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.sw button i{display:inline-block;width:12px;height:12px;border:1px solid #999}
+.sw button.on{border-color:#000;background:#000;color:#fff}
+.fontrow{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line)}
+.fontrow .ok{color:#0a7a2f}.fontrow .no{color:#b00}
+#gallery{display:none;flex:1;overflow-y:auto;padding:28px 32px;background:var(--grey)}
+#gallery h2{font-family:"TexMed";font-weight:normal;margin:0 0 6px}
+.gtools{display:flex;gap:8px;margin:14px 0 20px}.gtools .btn{width:auto;margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px}
+.card{background:#fff;cursor:pointer;border:1px solid transparent}
+.card:hover{border-color:var(--red1)}
+.card img{display:block;width:100%;aspect-ratio:1/1;object-fit:contain;background:#eee}
+.card .meta{padding:10px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.card .meta b{font-family:"TexMed";font-weight:normal;font-size:15px}
+.card .meta span{font-family:"TexThin";color:#666}
+.card .acts{display:flex;gap:12px;margin-top:6px}
+.card .acts button{font:inherit;font-size:12px;border:0;background:none;cursor:pointer;padding:0;text-decoration:underline}
+.empty{font-family:"TexThin";color:#666}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center;z-index:10}
+.modal .box{background:#fff;padding:28px 32px;max-width:440px;width:90%}
+.modal h3{font-family:"TexMed";font-weight:normal;margin:0 0 8px;color:var(--red1)}
+.modal p{margin:0 0 18px;line-height:1.45}
+.modal .btn{margin:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:11}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
 <header>
   <h1>מחולל הזמנות <span>|</span> המחלקה לעיצוב טקסטיל</h1>
+  <div class="tabs"><button id="tabEdit" class="on" type="button">עריכה</button><button id="tabGal" type="button">ההזמנות שלי</button></div>
   <img class="logo" id="hdrLogo" alt="שנקר · המחלקה לעיצוב טקסטיל">
 </header>
-<main>
+<main id="editor">
   <aside id="panel">
     <section>
       <h2>1. סוג האירוע</h2>
@@ -75,8 +120,15 @@ select{font:inherit;font-size:14px;width:100%;padding:8px;border:1px solid #000;
       <div class="chips" id="fmtChips"></div>
     </section>
     <section>
-      <h2>3. רקע</h2>
+      <h2>3. רקע וצבעים</h2>
       <div class="chips" id="bgChips"></div>
+      <div class="row colors">
+        <label><span>רקע</span><input type="color" id="cBg"></label>
+        <label><span>ראשי</span><input type="color" id="cFg"></label>
+        <label><span>הדגשה</span><input type="color" id="cAcc"></label>
+        <button class="btn small" id="cReset" type="button">צבעי המותג</button>
+      </div>
+      <p class="muted" id="cHint">צבעי המותג: לבן, אפור ‎#F5F5F5‏, אדום ‎#FF4141‏, שחור. צבע לשדה בודד: "עיצוב" בתוך השדה.</p>
       <div id="photoArea" style="margin-top:12px">
         <label class="file"><input type="file" id="photoIn" accept="image/*">העלאת תמונה (או גרירה לכאן)</label>
         <div id="photoCtl" hidden>
@@ -120,28 +172,67 @@ select{font:inherit;font-size:14px;width:100%;padding:8px;border:1px solid #000;
     </section>
     <section>
       <h2>4. תוכן</h2>
+      <p class="muted">ירידת שורה בתיבה = ירידת שורה בהזמנה. "עיצוב" פותח גודל, צבע ופונט לשדה.</p>
       <div id="fields"></div>
+      <label class="f"><span>רוחב עמודת הטקסט <b class="val" id="vColW"></b></span><input type="range" id="colW" min="40" max="100" step="1" value="100"></label>
     </section>
     <section>
-      <h2>5. חתימה וגרפיקה</h2>
-      <div class="chips" id="logoChips"></div>
+      <h2>5. לוגו וגרפיקה</h2>
+      <label class="f"><span>צבע הלוגו התלת-לשוני</span>
+        <select id="logoColor">
+          <option value="auto">אוטומטי לפי הרקע</option>
+          <option value="#000000">שחור</option>
+          <option value="#FFFFFF">לבן</option>
+          <option value="#FF4141">אדום</option>
+        </select>
+      </label>
       <label class="toggle"><input type="checkbox" id="gridOn" checked>קווי גריד אדומים</label>
     </section>
     <section>
-      <h2>6. הורדה</h2>
-      <button class="btn primary" id="dlPng" type="button">הורדת PNG</button>
-      <button class="btn" id="dlPdf" type="button">הורדת PDF (להדפסה)</button>
-      <button class="btn" id="dlAll" type="button">הורדת כל 4 הפורמטים</button>
-      <p class="muted">הקבצים נוצרים בדפדפן שלכם בלבד — שום תמונה או טקסט לא נשלחים לשרת.</p>
+      <h2>6. פונטים</h2>
+      <p class="muted">נרקיס בלוק ופרנקלין גותיק מוטמעים בכלי. יש לכם קובץ נוסף, למשל Narkis Block Black לכותרות? טענו אותו כאן. הוא נשמר בדפדפן שלכם בלבד.</p>
+      <div id="fontStatus"></div>
+      <label class="btn" style="display:block;text-align:center;margin-top:10px">טעינת קבצי פונט<input type="file" id="fontIn" accept=".otf,.ttf,.woff,.woff2" multiple hidden></label>
+    </section>
+    <section>
+      <h2>7. שמירה והורדה</h2>
+      <label class="f"><span>שם ההזמנה</span><input type="text" id="invName" placeholder="למשל: יום פתוח יולי"></label>
+      <label class="f"><span>שם היוצר/ת</span><input type="text" id="author" placeholder="השם שלך"></label>
+      <button class="btn dark" id="saveBtn" type="button">שמירה ב"ההזמנות שלי"</button>
+      <p class="muted" id="saveHint"></p>
+      <div class="btns">
+        <button class="btn primary" id="dlPng" type="button">PNG</button>
+        <button class="btn" id="dlJpg" type="button">JPG</button>
+        <button class="btn" id="dlPdf" type="button">PDF</button>
+      </div>
+      <button class="btn" id="dlAll" type="button">כל 4 הפורמטים (PNG)</button>
+      <div class="btns">
+        <button class="btn" id="projOut" type="button">שמירת קובץ פרויקט</button>
+        <label class="btn" style="text-align:center">פתיחת קובץ פרויקט<input type="file" id="projIn" accept=".json,application/json" hidden></label>
+      </div>
+      <p class="muted">קובץ פרויקט שומר את הטקסטים, ההגדרות והתמונה. שימו אותו בדרייב המשותף, וכל אחד מהצוות יוכל לפתוח אותו ולהמשיך לערוך. הכול נוצר בדפדפן — שום דבר לא נשלח לשרת.</p>
+      <button class="btn" id="newBtn" type="button">הזמנה חדשה</button>
     </section>
   </aside>
   <div id="stage">
+    <div id="warn"></div>
     <div id="canvasWrap"><canvas id="out"></canvas></div>
     <div class="hint" id="sizeHint"></div>
   </div>
 </main>
+<section id="gallery">
+  <h2>ההזמנות שלי</h2>
+  <p class="muted">ההזמנות שנשמרו בדפדפן הזה. לחיצה פותחת לעריכה. לשיתוף עם הצוות: קובץ פרויקט, או גיבוי של הכול.</p>
+  <div class="gtools">
+    <button class="btn" id="backupOut" type="button">גיבוי כל ההזמנות לקובץ</button>
+    <label class="btn">שחזור מגיבוי<input type="file" id="backupIn" accept=".json,application/json" hidden></label>
+  </div>
+  <div class="grid" id="grid"></div>
+</section>
+<div class="modal" id="modal"><div class="box"><h3 id="mT"></h3><p id="mB"></p><div class="btns" id="mA"></div></div></div>
+<div class="toast" id="toast"></div>
 <script src="logos.js?v=3"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

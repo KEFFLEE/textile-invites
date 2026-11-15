@@ -15,11 +15,17 @@ const FORMATS = {
 };
 
 const BGS = {
-  photo: { name:'תמונה',  bg:null,    fg:C.white, accent:C.red1,  tagBg:C.red1,  tagFg:C.black, logo:C.white, grid:C.red2 },
+  photo: { name:'תמונה',  photo:true, bg:null,    fg:C.white, accent:C.red1,  tagBg:C.red1,  tagFg:C.black, logo:C.white, grid:C.red2 },
   grey:  { name:'אפור',   bg:C.grey,  fg:C.black, accent:C.red1,  tagBg:C.red1,  tagFg:C.black, logo:C.black, grid:C.red2 },
   white: { name:'לבן',    bg:C.white, fg:C.black, accent:C.red1,  tagBg:C.red1,  tagFg:C.black, logo:C.black, grid:C.red2 },
   red:   { name:'אדום',   bg:C.red1,  fg:C.black, accent:C.white, tagBg:C.black, tagFg:C.white, logo:C.black, grid:C.white },
+  black: { name:'שחור',   bg:C.black, fg:C.white, accent:C.red1,  tagBg:C.red1,  tagFg:C.black, logo:C.white, grid:C.red2 },
 };
+/* צבעים לשדה בודד: ערכים קבועים או 'fg'/'acc' לפי ערכת הצבעים */
+const COLOR_OPTS = [['fg','ראשי'],['acc','הדגשה'],['#000000','שחור'],['#FFFFFF','לבן'],['#FF4141','אדום']];
+const FONT_OPTS = [['','ברירת מחדל'],[F.title,'כותרת (Black / Medium)'],[F.med,'Narkis Medium'],[F.reg,'Narkis Regular'],[F.thin,'Narkis Thin'],[F.en,'Franklin Gothic']];
+function lum(hex) { const n = parseInt(String(hex).slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; }
+
 
 // לוגו TEXTILE אינו בשימוש עוד — רק החתימה התלת-לשונית העדכנית
 const LOGO_MODES = {
@@ -28,7 +34,7 @@ const LOGO_MODES = {
 
 const TEMPLATES = {
   openday: {
-    name:'יום פתוח', bgs:['photo','grey','white','red'], defBg:'photo',
+    name:'יום פתוח', bgs:['photo','grey','white','red','black'], defBg:'photo',
     fields:[
       ['title','כותרת','text','יום פתוח'],
       ['subtitle','שורת משנה','text','במחלקה לעיצוב טקסטיל, שנקר'],
@@ -38,7 +44,7 @@ const TEMPLATES = {
     ],
   },
   exhibition: {
-    name:'תערוכה / פתיחה', bgs:['photo','grey','white','red'], defBg:'photo',
+    name:'תערוכה / פתיחה', bgs:['photo','grey','white','red','black'], defBg:'photo',
     fields:[
       ['kicker','תגית עליונה','text','הזמנה לפתיחת תערוכה'],
       ['title','שם התערוכה','area','שם התערוכה'],
@@ -51,7 +57,7 @@ const TEMPLATES = {
     ],
   },
   submission: {
-    name:'הזמנה להגשה', bgs:['grey','white','red'], defBg:'grey',
+    name:'הזמנה להגשה', bgs:['grey','white','red','black'], defBg:'grey',
     fields:[
       ['intro','פתיח','area','לסטודנטים/ות ולמרצים/ות המחלקה'],
       ['highlight','שורה מודגשת (אדום)','area','מוזמנים/ות להגשות פרויקט הגמר של מחזור תשפ״ז'],
@@ -67,26 +73,45 @@ const TEMPLATES = {
 
 /* ---------- מצב ---------- */
 const S = {
-  tpl:'openday', fmt:'square', bg:{}, logo:'full', grid:true, credit:'',
+  tpl:'openday', fmt:'square', bg:{}, logo:'full', logoColor:'auto', grid:true, credit:'',
+  custom:{}, fx:{}, colW:100, name:'', docId:null,
   values:{}, photo:null, dark:0.3,
   img:{ zoom:1, px:0, py:0, rot:0, flip:false, fit:'cover', op:1, blend:'source-over', gray:false, base:'#000000' },
 };
 for (const [k,t] of Object.entries(TEMPLATES)) {
-  S.bg[k] = t.defBg;
+  S.bg[k] = t.defBg; S.custom[k] = null; S.fx[k] = {};
   S.values[k] = Object.fromEntries(t.fields.map(f => [f[0], f[3]]));
 }
 try {
   const saved = JSON.parse(localStorage.getItem('tex-invite') || 'null');
   if (saved) {
-    for (const k of ['tpl','fmt','logo','grid','credit','dark']) if (k in saved) S[k] = saved[k];
+    for (const k of ['tpl','fmt','logo','logoColor','grid','credit','dark','colW']) if (k in saved) S[k] = saved[k];
+    if (saved.custom) Object.assign(S.custom, saved.custom);
+    if (saved.fx) for (const k in saved.fx) if (S.fx[k]) Object.assign(S.fx[k], saved.fx[k]);
     if (saved.img) for (const k of ['fit','op','blend','gray','base']) if (k in saved.img) S.img[k] = saved.img[k];
     if (!(S.logo in LOGO_MODES)) S.logo = 'full';
     if (saved.bg) Object.assign(S.bg, saved.bg);
     if (saved.values) for (const k in saved.values) if (S.values[k]) Object.assign(S.values[k], saved.values[k]);
   }
 } catch (e) { /* אין אחסון — ממשיכים */ }
+function stateOf() {
+  return JSON.parse(JSON.stringify({tpl:S.tpl, fmt:S.fmt, logo:S.logo, logoColor:S.logoColor, grid:S.grid, credit:S.credit, dark:S.dark, colW:S.colW, img:S.img, bg:S.bg, values:S.values, custom:S.custom, fx:S.fx}));
+}
+function applyState(st) {
+  for (const k of ['tpl','fmt','logo','logoColor','grid','credit','dark','colW']) if (k in st) S[k] = st[k];
+  if (!(S.logo in LOGO_MODES)) S.logo = 'full';
+  if (!(S.tpl in TEMPLATES)) S.tpl = 'openday';
+  if (!(S.fmt in FORMATS)) S.fmt = 'square';
+  if (st.img) Object.assign(S.img, st.img);
+  for (const k of Object.keys(TEMPLATES)) {
+    if (st.bg && st.bg[k]) S.bg[k] = st.bg[k];
+    S.custom[k] = st.custom && st.custom[k] || null;
+    S.fx[k] = st.fx && st.fx[k] || {};
+    if (st.values && st.values[k]) Object.assign(S.values[k], st.values[k]);
+  }
+}
 function persist() {
-  try { localStorage.setItem('tex-invite', JSON.stringify({tpl:S.tpl, fmt:S.fmt, logo:S.logo, grid:S.grid, credit:S.credit, dark:S.dark, img:S.img, bg:S.bg, values:S.values})); } catch (e) {}
+  try { localStorage.setItem('tex-invite', JSON.stringify(stateOf())); } catch (e) {}
 }
 
 /* ---------- לוגואים ---------- */
@@ -173,7 +198,7 @@ function makePainter(ctx, W, H, draw) {
     if (P.draw && b.lines.length) {
       setFont(ctx, b.fam, b.size);
       ctx.direction = 'rtl'; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = color;
+      ctx.fillStyle = b.color || color;
       b.lines.forEach((l, i) => ctx.fillText(l, x, y + b.size * (ASC[b.fam] + i * LH)));
     }
     return y + blockH(b);
@@ -193,9 +218,25 @@ function makePainter(ctx, W, H, draw) {
     }
     return { h, w };
   };
+  /* תגית עם הגדרות שדה */
+  P.tagK = (k, text, fam, size, x, y, align, bg, fg) => {
+    const f = fxOf(k), c = colorOpt(f.color);
+    return P.tag(text, f.font || fam, size * f.size, x, y, align, c || bg, c ? (lum(c) > 0.45 ? C.black : C.white) : fg);
+  };
   P.logo = (key, color, x, y, h) => {
     const w = h * aspect(key);
-    if (P.draw) ctx.drawImage(logoImg(key, color), x, y, w, h);
+    if (P.draw) {
+      if (color === 'auto') {   // לפי בהירות מה שמתחת ללוגו
+        color = C.black;
+        try {
+          const d = ctx.getImageData(x | 0, y | 0, Math.max(1, w | 0), Math.max(1, h | 0)).data;
+          let t = 0, n = 0;
+          for (let i = 0; i < d.length; i += 64) { t += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; n++; }
+          color = t / n < 0.5 ? C.white : C.black;
+        } catch (e) {}
+      }
+      ctx.drawImage(logoImg(key, color), x, y, w, h);
+    }
     return w;
   };
   P.line = (x1, y1, x2, y2, color, lw) => {
@@ -294,32 +335,32 @@ const LAYOUTS = {
 
   openday(P, g, th, v, s, fmt) {
     const { W, H, u, m, top, bottom } = g;
-    const colW = fmt.wide ? W * 0.56 : W - 2 * m;
+    const colW = (fmt.wide ? W * 0.56 : W - 2 * m) * CW();
     const R = W - m;
-    background(P, g, th, th === BGS.photo);
+    background(P, g, th, th.photo);
     let y = top;
-    const t = fit(P.ctx, v.title, F.title, 270 * u * s, 60 * u, colW, 2);
+    const t = fitK('title', P.ctx, v.title, F.title, 270 * u * s, 60 * u, colW, 2);
     y = P.text(t, R + t.size * 0.02, y, 'right', th.fg);
     if (v.subtitle) {
       y += 34 * u * s;
-      const b = fit(P.ctx, v.subtitle, F.med, 58 * u * s, 26 * u, colW, 2);
+      const b = fitK('subtitle', P.ctx, v.subtitle, F.med, 58 * u * s, 26 * u, colW, 2);
       y = P.text(b, R, y, 'right', th.fg);
     }
     if (v.date) {
       y += 40 * u * s;
-      const b = fit(P.ctx, v.date, F.title, 150 * u * s, 50 * u, colW, 2);
+      const b = fitK('date', P.ctx, v.date, F.title, 150 * u * s, 50 * u, colW, 2);
       y = P.text(b, R, y, 'right', th.fg);
     }
     if (v.details) {
       y += 36 * u * s;
-      const b = fit(P.ctx, v.details, F.reg, 46 * u * s, 24 * u, colW, 4);
+      const b = fitK('details', P.ctx, v.details, F.reg, 46 * u * s, 24 * u, colW, 4);
       y = P.text(b, R, y, 'right', th.fg);
     }
     if (v.tag) {
       y += 30 * u * s;
-      y += P.tag(v.tag, F.med, 40 * u * s, R, y, 'right', th.tagBg, th.tagFg).h;
+      y += P.tagK('tag', v.tag, F.med, 40 * u * s, R, y, 'right', th.tagBg, th.tagFg).h;
     }
-    const logosTop = footerLogos(P, g, th.logo, H - bottom);
+    const logosTop = footerLogos(P, g, logoCol(th), H - bottom);
     if (S.grid) {
       const ly = y + 44 * u;
       P.line(W * (fmt.wide ? 0.3 : 0.42), ly, W, ly, th.grid, g.lw);
@@ -332,40 +373,40 @@ const LAYOUTS = {
   exhibition(P, g, th, v, s, fmt) {
     const { W, H, u, m, top, bottom } = g;
     const R = W - m;
-    background(P, g, th, th === BGS.photo);
+    background(P, g, th, th.photo);
     let y = top;
-    if (v.kicker) y += P.tag(v.kicker, F.med, 40 * u * s, R, y, 'right', th.tagBg, th.tagFg).h + 30 * u * s;
-    const titleW = fmt.wide ? W * 0.62 : W - 2 * m;
-    const t = fit(P.ctx, v.title, F.title, 200 * u * s, 56 * u, titleW, 3);
+    if (v.kicker) y += P.tagK('kicker', v.kicker, F.med, 40 * u * s, R, y, 'right', th.tagBg, th.tagFg).h + 30 * u * s;
+    const titleW = (fmt.wide ? W * 0.62 : W - 2 * m) * CW();
+    const t = fitK('title', P.ctx, v.title, F.title, 200 * u * s, 56 * u, titleW, 3);
     y = P.text(t, R + t.size * 0.02, y, 'right', th.fg);
     const titleBottom = y;
 
     // אזור תחתון: עמודת תאריך משמאל, שמות מימין
-    const logosTop = footerLogos(P, g, th.logo, H - bottom);
+    const logosTop = footerLogos(P, g, logoCol(th), H - bottom);
     const zoneBottom = logosTop - 64 * u;
     const leftW = fmt.wide ? W * 0.3 : (W - 2 * m) * 0.44;
-    const rightW = fmt.wide ? W * 0.36 : (W - 2 * m) * 0.5;
+    const rightW = (fmt.wide ? W * 0.36 : (W - 2 * m) * 0.5) * Math.min(1, CW() + 0.2);
 
     // עמודה שמאלית — מלמטה למעלה
     const placeSize = 38 * u * s;
     let placeH = 0;
-    if (v.place) { P.draw = false; placeH = P.tag(v.place, F.med, placeSize, m, 0, 'left', th.tagBg, th.tagFg).h; P.draw = g.draw; }
+    if (v.place) { P.draw = false; placeH = P.tagK('place', v.place, F.med, placeSize, m, 0, 'left', th.tagBg, th.tagFg).h; P.draw = g.draw; }
     const dl = [v.day, v.date, v.time].filter(Boolean).join('\n');
-    const d = fit(P.ctx, dl, F.title, 120 * u * s, 40 * u, leftW, 3);
+    const d = fitK('date', P.ctx, dl, F.title, 120 * u * s, 40 * u, leftW, 3);
     const dH = blockH(d);
     const dTop = zoneBottom - (placeH ? placeH + 22 * u : 0) - dH;
     P.text(d, m, dTop, 'left', th.fg);
-    if (v.place) P.tag(v.place, F.med, placeSize, m, dTop + dH + 22 * u, 'left', th.tagBg, th.tagFg);
+    if (v.place) P.tagK('place', v.place, F.med, placeSize, m, dTop + dH + 22 * u, 'left', th.tagBg, th.tagFg);
 
     // עמודה ימנית — שמות מיושרים לתחתית
-    const n = fit(P.ctx, v.names, F.title, 76 * u * s, 30 * u, rightW, 3);
+    const n = fitK('names', P.ctx, v.names, F.title, 76 * u * s, 30 * u, rightW, 3);
     const nH = blockH(n);
     const nTop = zoneBottom - nH;
     P.text(n, R, nTop, 'right', th.fg);
     let labelH = 0;
     if (v.namesLabel) {
-      P.draw = false; labelH = P.tag(v.namesLabel, F.med, 36 * u * s, R, 0, 'right', th.tagBg, th.tagFg).h; P.draw = g.draw;
-      P.tag(v.namesLabel, F.med, 36 * u * s, R, nTop - labelH - 20 * u, 'right', th.tagBg, th.tagFg);
+      P.draw = false; labelH = P.tagK('namesLabel', v.namesLabel, F.med, 36 * u * s, R, 0, 'right', th.tagBg, th.tagFg).h; P.draw = g.draw;
+      P.tagK('namesLabel', v.namesLabel, F.med, 36 * u * s, R, nTop - labelH - 20 * u, 'right', th.tagBg, th.tagFg);
     }
     const rightTop = nTop - (labelH ? labelH + 20 * u : 0);
     const zoneTop = Math.min(dTop, rightTop);
@@ -385,37 +426,37 @@ const LAYOUTS = {
     const { W, H, u, m, top, bottom } = g;
     P.rect(0, 0, W, H, th.bg);
     const panelL = fmt.wide ? W * 0.5 : 0;     // בפורמט רחב: תמונה משמאל, טקסט מימין
-    const pm = panelL + m, R = W - m, colW = R - pm;
+    const pm = panelL + m, R = W - m, colW = R - pm, tW = colW * CW();
 
     // לוגואים עליונים
     const hW = 46 * u, hS = 52 * u;
     let logosH = hW;
     if (S.logo === 'full') {
       const w = Math.min(colW, 1000 * u), h = w / aspect('lockup');
-      P.logo('lockup', th.logo, R - w, top, h); logosH = h;
+      P.logo('lockup', logoCol(th), R - w, top, h); logosH = h;
     } else {
       P.logo('wordmark', th.logo, pm, top, hW);
       if (S.logo === 'compact') { P.logo('shenkar', th.logo, R - hS * aspect('shenkar'), top, hS); logosH = hS; }
     }
     let y = top + logosH + 60 * u * s;
-    const intro = fit(P.ctx, v.intro, F.reg, 56 * u * s, 24 * u, colW, 3);
+    const intro = fitK('intro', P.ctx, v.intro, F.reg, 56 * u * s, 24 * u, tW, 3);
     y = P.text(intro, R, y, 'right', th.fg);
     if (v.highlight) {
       y += 16 * u * s;
-      const b = fit(P.ctx, v.highlight, F.med, 60 * u * s, 26 * u, colW, 4);
+      const b = fitK('highlight', P.ctx, v.highlight, F.med, 60 * u * s, 26 * u, tW, 4);
       y = P.text(b, R, y, 'right', th.accent);
     }
     if (v.detail) {
       y += 16 * u * s;
-      const b = fit(P.ctx, v.detail, F.reg, 56 * u * s, 24 * u, colW, 3);
+      const b = fitK('detail', P.ctx, v.detail, F.reg, 56 * u * s, 24 * u, tW, 3);
       y = P.text(b, R, y, 'right', th.fg);
     }
     const textBottom = y;
 
     // כותרת תחתונה
-    const url = v.url ? fit(P.ctx, v.url, F.en, 34 * u * s, 18 * u, colW, 1) : { lines:[], size:0, fam:F.en };
-    const dept = v.dept ? fit(P.ctx, v.dept, F.reg, 44 * u * s, 20 * u, colW, 2) : { lines:[], size:0, fam:F.reg };
-    const tl = v.tagline ? fit(P.ctx, v.tagline, F.reg, 24 * u * s, 14 * u, colW, 2) : { lines:[], size:0, fam:F.reg };
+    const url = v.url ? fitK('url', P.ctx, v.url, F.en, 34 * u * s, 18 * u, colW, 1) : { lines:[], size:0, fam:F.en };
+    const dept = v.dept ? fitK('dept', P.ctx, v.dept, F.reg, 44 * u * s, 20 * u, colW, 2) : { lines:[], size:0, fam:F.reg };
+    const tl = v.tagline ? fitK('tagline', P.ctx, v.tagline, F.reg, 24 * u * s, 14 * u, colW, 2) : { lines:[], size:0, fam:F.reg };
     const gapF = 14 * u;
     const footH = blockH(url) + blockH(dept) + blockH(tl) + gapF * 2;
     const footTop = H - bottom - footH;
@@ -426,8 +467,8 @@ const LAYOUTS = {
 
     // תאריכים
     const dSize = 66 * u * s;
-    const dates = fit(P.ctx, v.dates, F.title, dSize, 28 * u, colW * 0.9, 5);
-    const hours = v.hours ? fit(P.ctx, v.hours, F.title, dSize * 0.92, 26 * u, colW * 0.95, 2) : null;
+    const dates = fitK('dates', P.ctx, v.dates, F.title, dSize, 28 * u, tW * 0.9, 5);
+    const hours = v.hours ? fitK('hours', P.ctx, v.hours, F.title, dSize * 0.92, 26 * u, tW * 0.95, 2) : null;
     let ok;
 
     if (fmt.wide) {
@@ -447,14 +488,14 @@ const LAYOUTS = {
       drawPhoto(P, 0, phTop, W, phBottom - phTop, 0);
       // תוויות על התמונה, מלמטה למעלה
       const labels = [];
-      dates.lines.forEach(l => labels.push({ t:l, size:dates.size }));
-      if (hours) hours.lines.forEach((l, i) => labels.push({ t:l, size:hours.size, gapBefore: i === 0 }));
+      dates.lines.forEach(l => labels.push({ t:l, size:dates.size, fam:dates.fam, color:dates.color }));
+      if (hours) hours.lines.forEach((l, i) => labels.push({ t:l, size:hours.size, fam:hours.fam, color:hours.color, gapBefore: i === 0 }));
       let ly = phBottom - 44 * u;
-      const step = lb => lb.size * (ASC[F.title] + 0.4) + 8 * u;
+      const step = lb => lb.size * (ASC[lb.fam] + 0.4) + 8 * u;
       for (let i = labels.length - 1; i >= 0; i--) {
         const lb = labels[i];
         ly -= step(lb);
-        P.tag(lb.t, F.title, lb.size, R + lb.size * 0.32, ly, 'right', th.bg, th.fg);
+        P.tag(lb.t, lb.fam, lb.size, R + lb.size * 0.32, ly, 'right', th.photo ? C.white : th.bg, lb.color || (th.photo ? C.black : th.fg));
         if (lb.gapBefore) ly -= 22 * u;
       }
       ok = (ly - phTop) > 0.12 * H || (ly - phTop) > 120 * u;
@@ -471,12 +512,43 @@ const LAYOUTS = {
   },
 };
 
+/* ---------- ערכת צבעים פעילה (כולל צבעים מותאמים) ---------- */
+let CUR_TH = BGS.grey;
+function themeFor(tpl) {
+  const base = BGS[S.bg[tpl]] || BGS.grey, c = S.custom[tpl], th = { ...base };
+  if (!c) return th;
+  if (c.bg) { th.bg = c.bg; if (!base.photo) th.logo = lum(c.bg) < 0.5 ? C.white : C.black; }
+  if (c.fg) th.fg = c.fg;
+  if (c.acc) {
+    th.accent = c.acc; th.tagBg = c.acc; th.tagFg = lum(c.acc) > 0.45 ? C.black : C.white;
+    th.grid = c.acc.toUpperCase() === C.red1 ? C.red2 : c.acc;
+  }
+  return th;
+}
+function colorOpt(v) {
+  if (!v) return null;
+  if (v === 'fg') return CUR_TH.fg;
+  if (v === 'acc') return CUR_TH.accent;
+  return v;
+}
+const fxOf = k => Object.assign({ size:1, color:null, font:'' }, S.fx[S.tpl][k] || {});
+/* fit עם הגדרות השדה: גודל, פונט וצבע */
+function fitK(k, ctx, text, fam, maxSize, minSize, maxW, maxLines) {
+  const f = fxOf(k);
+  const r = fit(ctx, text, f.font || fam, maxSize * f.size, minSize * Math.min(1, f.size), maxW, maxLines);
+  r.color = colorOpt(f.color);
+  return r;
+}
+const CW = () => S.colW / 100;
+const logoCol = th => S.logoColor === 'auto' ? 'auto' : S.logoColor;
+
 /* ---------- רינדור ---------- */
 function render(canvas, fmtKey) {
   const fmt = FORMATS[fmtKey];
   canvas.width = fmt.w; canvas.height = fmt.h;
   const ctx = canvas.getContext('2d');
-  const tpl = S.tpl, th = BGS[S.bg[tpl]], v = S.values[tpl];
+  const tpl = S.tpl, th = themeFor(tpl), v = S.values[tpl];
+  CUR_TH = th;
   const g = geometry(fmt);
   const layout = LAYOUTS[tpl];
   // מוצאים קנה מידה שבו אין התנגשויות, ואז מציירים
@@ -487,7 +559,8 @@ function render(canvas, fmtKey) {
   }
   g.draw = true;
   ctx.clearRect(0, 0, fmt.w, fmt.h);
-  layout(makePainter(ctx, fmt.w, fmt.h, true), g, th, v, s, fmt);
+  const ok = layout(makePainter(ctx, fmt.w, fmt.h, true), g, th, v, Math.max(s, 0.5), fmt);
+  return { s, ok };
 }
 
 /* ---------- ממשק ---------- */
@@ -511,22 +584,23 @@ function buildUI() {
   const t = TEMPLATES[S.tpl];
   if (!t.bgs.includes(S.bg[S.tpl])) S.bg[S.tpl] = t.defBg;
   chips($('bgChips'), t.bgs.map(k => [k, BGS[k].name]), S.bg[S.tpl], k => { S.bg[S.tpl] = k; buildUI(); update(); });
-  chips($('logoChips'), Object.entries(LOGO_MODES), S.logo, k => { S.logo = k; buildUI(); update(); });
 
   const usesPhoto = S.tpl === 'submission' || S.bg[S.tpl] === 'photo';
   $('photoArea').style.display = usesPhoto ? '' : 'none';
   $('photoCtl').hidden = !S.photo;
   $('pDark').parentElement.style.display = S.tpl === 'submission' ? 'none' : '';
 
-  const box = $('fields'); box.innerHTML = '';
-  for (const [k, label, type] of t.fields) {
-    const l = document.createElement('label'); l.className = 'f';
-    const inp = document.createElement(type === 'area' ? 'textarea' : 'input');
-    if (type !== 'area') inp.type = 'text';
-    inp.value = S.values[S.tpl][k];
-    inp.oninput = () => { S.values[S.tpl][k] = inp.value; update(); };
-    l.innerHTML = `<span>${label}</span>`; l.appendChild(inp); box.appendChild(l);
-  }
+  buildFields(t);
+  // צבעים מותאמים
+  const th = themeFor(S.tpl);
+  $('cBg').value = (th.bg || S.img.base || '#000000').toLowerCase();
+  $('cFg').value = th.fg.toLowerCase();
+  $('cAcc').value = th.accent.toLowerCase();
+  $('cReset').disabled = !S.custom[S.tpl];
+  $('colW').value = S.colW; $('vColW').textContent = S.colW + '%';
+  $('logoColor').value = S.logoColor;
+  $('invName').value = S.name || '';
+  $('saveHint').textContent = S.docId ? 'פתוחה הזמנה שמורה. שמירה תעדכן אותה או תיצור עותק.' : '';
   $('gridOn').checked = S.grid;
   $('credit').value = S.credit;
   $('pDark').value = S.dark;
@@ -535,10 +609,64 @@ function buildUI() {
   $('sizeHint').textContent = `${f.name} · ${f.w}x${f.h} פיקסלים` + (f.story ? ' · השוליים העליונים והתחתונים שמורים לממשק של אינסטגרם' : '');
 }
 
+/* שדות תוכן עם הגדרות עיצוב (גודל, צבע, פונט) */
+const openFx = new Set();
+function buildFields(t) {
+  const box = $('fields'); box.innerHTML = '';
+  for (const [k, label, type] of t.fields) {
+    const d = document.createElement('div'); d.className = 'field';
+    const f = fxOf(k);
+    const isCustom = f.size !== 1 || f.color || f.font;
+    if (openFx.has(S.tpl + k)) d.classList.add('open');
+    if (isCustom) d.classList.add('custom');
+    d.innerHTML = `<div class="fh"><span></span><button type="button">עיצוב${isCustom ? ' •' : ''}</button></div>
+      <div class="fx">
+        <label class="f"><span>גודל <b class="val"></b></span><input type="range" min="0.5" max="1.8" step="0.05"></label>
+        <div class="sw"></div>
+        <select></select>
+        <button class="btn small" type="button" data-reset>איפוס עיצוב השדה</button>
+      </div>`;
+    d.querySelector('.fh span').textContent = label;
+    const inp = document.createElement(type === 'area' ? 'textarea' : 'input');
+    if (type !== 'area') inp.type = 'text';
+    inp.value = S.values[S.tpl][k];
+    inp.oninput = () => { S.values[S.tpl][k] = inp.value; update(); };
+    d.querySelector('.fh').after(inp);
+    const setFx = (key, val) => { S.fx[S.tpl][k] = Object.assign(fxOf(k), { [key]: val }); buildFields(t); update(); };
+    d.querySelector('.fh button').onclick = () => { const id = S.tpl + k; openFx.has(id) ? openFx.delete(id) : openFx.add(id); d.classList.toggle('open'); };
+    const rng = d.querySelector('input[type=range]'), val = d.querySelector('.val');
+    rng.value = f.size; val.textContent = Math.round(f.size * 100) + '%';
+    rng.oninput = () => { S.fx[S.tpl][k] = Object.assign(fxOf(k), { size: +rng.value }); val.textContent = Math.round(rng.value * 100) + '%'; update(); };
+    rng.onchange = () => buildFields(t);
+    const sw = d.querySelector('.sw');
+    for (const [v, n] of [['', 'ברירת מחדל'], ...COLOR_OPTS]) {
+      const b = document.createElement('button'); b.type = 'button';
+      const c = v ? colorOpt(v) || v : null;
+      b.innerHTML = (c ? `<i style="background:${c}"></i>` : '') + n;
+      if ((f.color || '') === v) b.classList.add('on');
+      b.onclick = () => setFx('color', v || null);
+      sw.appendChild(b);
+    }
+    const sel = d.querySelector('select');
+    for (const [v, n] of FONT_OPTS) { const o = document.createElement('option'); o.value = v; o.textContent = n; sel.appendChild(o); }
+    sel.value = f.font || '';
+    sel.onchange = () => setFx('font', sel.value);
+    d.querySelector('[data-reset]').onclick = () => { delete S.fx[S.tpl][k]; buildFields(t); update(); };
+    box.appendChild(d);
+  }
+}
+
 let raf = 0;
 function update() {
   cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(() => { render(out, S.fmt); persist(); });
+  raf = requestAnimationFrame(() => {
+    const r = render(out, S.fmt);
+    const w = $('warn');
+    const msg = !r.ok ? 'יש התנגשות בין טקסטים — קצרו טקסט, הקטינו גדלים או הרחיבו את עמודת הטקסט.'
+      : r.s < 0.999 ? 'הטקסט הוקטן אוטומטית כדי להישאר בשוליים.' : '';
+    w.textContent = msg; w.style.display = msg ? 'block' : 'none';
+    persist();
+  });
 }
 
 /* תמונה: העלאה, שליטה, גרירה */
@@ -546,7 +674,7 @@ const resetPos = () => Object.assign(S.img, { zoom:1, px:0, py:0, rot:0, flip:fa
 function loadPhoto(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const img = new Image();
-  img.onload = () => { S.photo = img; resetPos(); buildUI(); update(); };
+  img.onload = () => { S.photo = img; photoData = null; resetPos(); buildUI(); update(); };
   img.src = URL.createObjectURL(file);
 }
 function syncPhotoUI() {
@@ -583,7 +711,7 @@ for (const ay of [-1, 0, 1]) for (const ax of [-1, 0, 1]) {
   $('pAnchor').appendChild(b);
 }
 $('pDark').oninput = e => { S.dark = +e.target.value; update(); };
-$('pRemove').onclick = () => { S.photo = null; buildUI(); update(); };
+$('pRemove').onclick = () => { S.photo = null; photoData = null; buildUI(); update(); };
 $('credit').oninput = e => { S.credit = e.target.value; update(); };
 $('gridOn').onchange = e => { S.grid = e.target.checked; update(); };
 
@@ -639,6 +767,7 @@ function pdfOf(fmtKey) {
 }
 $('dlPng').onclick = async () => download(await pngOf(S.fmt), fileBase(S.fmt) + '.png');
 $('dlPdf').onclick = () => download(pdfOf(S.fmt), fileBase(S.fmt) + '.pdf');
+$('dlJpg').onclick = () => { const c = document.createElement('canvas'); render(c, S.fmt); c.toBlob(b => download(b, fileBase(S.fmt) + '.jpg'), 'image/jpeg', 0.93); };
 $('dlAll').onclick = async () => {
   for (const k of Object.keys(FORMATS)) {
     download(await pngOf(k), fileBase(k) + '.png');
@@ -647,16 +776,242 @@ $('dlAll').onclick = async () => {
   render(out, S.fmt);
 };
 
+/* ---------- צבעים מותאמים, רוחב עמודה, לוגו ---------- */
+function setCustom(key, val) {
+  const c = Object.assign({}, S.custom[S.tpl] || {}); c[key] = val.toUpperCase();
+  S.custom[S.tpl] = c;
+  if (key === 'bg' && BGS[S.bg[S.tpl]].photo) S.img.base = c.bg;
+  $('cReset').disabled = false; update();
+}
+$('cBg').oninput = e => setCustom('bg', e.target.value);
+$('cFg').oninput = e => setCustom('fg', e.target.value);
+$('cAcc').oninput = e => setCustom('acc', e.target.value);
+$('cBg').onchange = $('cFg').onchange = $('cAcc').onchange = () => buildUI();
+$('cReset').onclick = () => { S.custom[S.tpl] = null; buildUI(); update(); };
+$('colW').oninput = e => { S.colW = +e.target.value; $('vColW').textContent = S.colW + '%'; update(); };
+$('logoColor').onchange = e => { S.logoColor = e.target.value; update(); };
+$('invName').oninput = e => { S.name = e.target.value; };
+try { $('author').value = localStorage.getItem('tex-author') || ''; } catch (e) {}
+$('author').oninput = e => { try { localStorage.setItem('tex-author', e.target.value); } catch (er) {} };
+
+/* ---------- הודעות ---------- */
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('show'), 2600); }
+function modal(title, body, actions) {
+  $('mT').textContent = title; $('mB').textContent = body;
+  const a = $('mA'); a.innerHTML = '';
+  return new Promise(res => {
+    for (const [t, v, cls] of actions) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = t;
+      b.onclick = () => { $('modal').style.display = 'none'; res(v); };
+      a.appendChild(b);
+    }
+    $('modal').style.display = 'flex';
+  });
+}
+
+/* ---------- אחסון מקומי (IndexedDB): פונטים והזמנות ---------- */
+function idb() {
+  return new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open('tex-invites', 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('fonts'); r.result.createObjectStore('invites', { keyPath:'id' }); };
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  });
+}
+async function idbDo(store, mode, fn) {
+  const d = await idb();
+  return new Promise((res, rej) => {
+    const tx = d.transaction(store, mode), st = tx.objectStore(store);
+    const r = fn(st);
+    tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error);
+  });
+}
+const idbPut = (store, v, k) => idbDo(store, 'readwrite', st => st.put(v, k));
+const idbDel = (store, k) => idbDo(store, 'readwrite', st => st.delete(k));
+const idbAll = store => idbDo(store, 'readonly', st => st.getAll());
+const idbKeys = store => idbDo(store, 'readonly', st => st.getAllKeys());
+const idbGet = (store, k) => idbDo(store, 'readonly', st => st.get(k));
+
+/* ---------- פונטים ---------- */
+const FONT_ROLES = [[F.title, 'כותרות — Narkis Block Black'], [F.med, 'Narkis Block Medium'], [F.reg, 'Narkis Block Regular'], [F.thin, 'Narkis Block Thin'], [F.en, 'Franklin Gothic']];
+const userFonts = {};   // role -> file name
+let hasBlack = false;
+function guessRole(name) {
+  const n = name.toLowerCase();
+  if (n.includes('franklin')) return F.en;
+  if (n.includes('black') || n.includes('heavy')) return F.title;
+  if (n.includes('thin') || n.includes('light')) return F.thin;
+  if (n.includes('medium')) return F.med;
+  if (n.includes('narkis') || n.includes('regular')) return F.reg;
+  return null;
+}
+async function installFont(role, buf, name) {
+  const ff = new FontFace(role, buf.slice(0));
+  await ff.load(); document.fonts.add(ff);
+  userFonts[role] = name; if (role === F.title) hasBlack = true;
+}
+function renderFontStatus() {
+  $('fontStatus').innerHTML = FONT_ROLES.map(([r, label]) => {
+    let st;
+    if (userFonts[r]) st = '<span class="ok">נטען מקובץ</span>';
+    else if (r === F.title) st = hasBlack ? '<span class="ok">פעיל</span>' : '<span class="no">חסר — הכותרות ב-Medium</span>';
+    else st = '<span class="ok">מוטמע</span>';
+    return `<div class="fontrow"><span>${label}</span>${st}</div>`;
+  }).join('');
+}
+async function restoreFonts() {
+  try { const r = await fetch('fonts/NarkisBlock-Black.ttf', { method:'HEAD' }); if (r.ok) hasBlack = true; } catch (e) {}
+  try {
+    const keys = await idbKeys('fonts');
+    for (const k of keys) { const v = await idbGet('fonts', k); if (v && v.buf) await installFont(k, v.buf, v.name); }
+  } catch (e) {}
+  renderFontStatus(); refresh();
+}
+$('fontIn').onchange = async e => {
+  let n = 0; const miss = [];
+  for (const f of e.target.files) {
+    const role = guessRole(f.name);
+    if (!role) { miss.push(f.name); continue; }
+    try { const buf = await f.arrayBuffer(); await installFont(role, buf, f.name); await idbPut('fonts', { name:f.name, buf }, role); n++; }
+    catch (err) { miss.push(f.name); }
+  }
+  e.target.value = '';
+  renderFontStatus(); refresh();
+  if (n) toast(`נטענו ${n} פונטים`);
+  if (miss.length) modal('קבצים שלא זוהו', 'שם הקובץ צריך לכלול Narkis או Franklin, ואת המשקל (Black / Medium / Regular / Thin): ' + miss.join(', '), [['הבנתי', 1]]);
+};
+
+/* ---------- תמונה לשמירה (דחוסה) ---------- */
+let photoData = null;
+function photoToData(img) {
+  const max = 1800, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+function loadImgData(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+function snapshot() {
+  if (S.photo && !photoData) photoData = photoToData(S.photo);
+  return { app:'textile-invites', v:1, name:S.name || '', state:stateOf(), photo:S.photo ? photoData : null };
+}
+async function openSnapshot(snap, id) {
+  if (!snap || snap.app !== 'textile-invites' || !snap.state) throw new Error('bad');
+  applyState(snap.state);
+  S.name = snap.name || ''; S.docId = id || null;
+  S.photo = null; photoData = null;
+  if (typeof snap.photo === 'string' && snap.photo.startsWith('data:image/')) { S.photo = await loadImgData(snap.photo); photoData = snap.photo; }
+  buildUI(); update(); showTab('edit');
+}
+function thumb() {
+  const c = document.createElement('canvas'); const sc = 360 / Math.max(out.width, out.height);
+  c.width = Math.round(out.width * sc); c.height = Math.round(out.height * sc);
+  c.getContext('2d').drawImage(out, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8);
+}
+function defaultName() { const v = S.values[S.tpl]; return String(v.title || v.highlight || TEMPLATES[S.tpl].name).split('\n').join(' ').slice(0, 60); }
+
+/* ---------- ההזמנות שלי ---------- */
+$('saveBtn').onclick = async () => {
+  if (!S.name.trim()) { S.name = defaultName(); $('invName').value = S.name; }
+  let mode = 'new';
+  if (S.docId) { mode = await modal('שמירה', 'לעדכן את ההזמנה השמורה או לשמור עותק חדש?', [['עדכון', 'update', 'primary'], ['עותק חדש', 'new'], ['ביטול', null]]); if (!mode) return; }
+  try {
+    const id = mode === 'update' ? S.docId : 'inv-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const prev = mode === 'update' ? await idbGet('invites', id) : null;
+    const now = Date.now();
+    await idbPut('invites', { id, name:S.name, author:$('author').value || '', createdAt: prev ? prev.createdAt : now, updatedAt: now, thumb: thumb(), snap: snapshot() });
+    S.docId = id; buildUI(); toast('נשמר ב"ההזמנות שלי"');
+  } catch (e) { toast('השמירה נכשלה — ייתכן שהדפדפן חוסם אחסון'); }
+};
+async function renderGallery() {
+  const g = $('grid');
+  let docs = [];
+  try { docs = (await idbAll('invites')).sort((a, b) => b.updatedAt - a.updatedAt); } catch (e) {}
+  if (!docs.length) { g.innerHTML = '<div class="empty">עדיין אין הזמנות שמורות. צרו הזמנה ולחצו "שמירה ב׳ההזמנות שלי׳".</div>'; return; }
+  g.innerHTML = '';
+  for (const d of docs) {
+    const el = document.createElement('div'); el.className = 'card';
+    el.innerHTML = '<img alt=""><div class="meta"><b></b><span></span><div class="acts"><button type="button" data-a="dup">שכפול</button><button type="button" data-a="file">קובץ פרויקט</button><button type="button" data-a="del">מחיקה</button></div></div>';
+    el.querySelector('img').src = d.thumb || '';
+    el.querySelector('b').textContent = d.name || 'ללא שם';
+    el.querySelector('span').textContent = [d.author, new Date(d.updatedAt).toLocaleDateString('he-IL')].filter(Boolean).join(' · ');
+    el.onclick = () => openSnapshot(d.snap, d.id).then(() => toast('נפתח לעריכה')).catch(() => toast('לא הצלחתי לפתוח'));
+    el.querySelector('[data-a=dup]').onclick = async ev => {
+      ev.stopPropagation();
+      const id = 'inv-' + Date.now().toString(36);
+      await idbPut('invites', { ...d, id, name: d.name + ' (עותק)', createdAt: Date.now(), updatedAt: Date.now() });
+      renderGallery();
+    };
+    el.querySelector('[data-a=file]').onclick = ev => { ev.stopPropagation(); download(new Blob([JSON.stringify(d.snap)], { type:'application/json' }), safeName(d.name) + '.textile.json'); };
+    el.querySelector('[data-a=del]').onclick = async ev => {
+      ev.stopPropagation();
+      const ok = await modal('מחיקה', `למחוק את "${d.name || 'ללא שם'}"? אי אפשר לשחזר.`, [['מחיקה', 1, 'primary'], ['ביטול', 0]]);
+      if (!ok) return;
+      await idbDel('invites', d.id); if (S.docId === d.id) S.docId = null; renderGallery(); toast('נמחק');
+    };
+    g.appendChild(el);
+  }
+}
+function showTab(t) {
+  $('tabEdit').classList.toggle('on', t === 'edit'); $('tabGal').classList.toggle('on', t === 'gal');
+  $('editor').style.display = t === 'edit' ? '' : 'none';
+  $('gallery').style.display = t === 'gal' ? 'block' : 'none';
+  if (t === 'gal') renderGallery(); else update();
+}
+$('tabEdit').onclick = () => showTab('edit');
+$('tabGal').onclick = () => showTab('gal');
+
+/* ---------- קובצי פרויקט וגיבוי ---------- */
+const safeName = n => (n || 'הזמנה').replace(/[\\/:*?"<>|\n]/g, '').trim().slice(0, 60) || 'הזמנה';
+$('projOut').onclick = () => {
+  if (!S.name.trim()) { S.name = defaultName(); $('invName').value = S.name; }
+  download(new Blob([JSON.stringify(snapshot())], { type:'application/json' }), safeName(S.name) + '.textile.json');
+};
+async function readJson(file) { return JSON.parse(await file.text()); }
+$('projIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { await openSnapshot(await readJson(f), null); toast('הפרויקט נפתח'); }
+  catch (err) { modal('לא הצלחתי לפתוח', 'הקובץ אינו קובץ פרויקט של מחולל ההזמנות.', [['הבנתי', 1]]); }
+};
+$('backupOut').onclick = async () => {
+  const docs = await idbAll('invites').catch(() => []);
+  if (!docs.length) { toast('אין הזמנות לגבות'); return; }
+  download(new Blob([JSON.stringify({ app:'textile-invites-backup', v:1, invites:docs })], { type:'application/json' }), 'textile-invites-backup.json');
+};
+$('backupIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const b = await readJson(f); let n = 0;
+    if (b.app === 'textile-invites') { await idbPut('invites', { id:'inv-' + Date.now().toString(36), name:b.name || 'הזמנה', author:'', createdAt:Date.now(), updatedAt:Date.now(), thumb:'', snap:b }); n = 1; }
+    else if (b.app === 'textile-invites-backup') for (const d of b.invites || []) { if (d && d.id && d.snap) { await idbPut('invites', d); n++; } }
+    else throw 0;
+    renderGallery(); toast(`שוחזרו ${n} הזמנות`);
+  } catch (err) { modal('לא הצלחתי לשחזר', 'הקובץ אינו גיבוי של מחולל ההזמנות.', [['הבנתי', 1]]); }
+};
+
+/* ---------- הזמנה חדשה ---------- */
+$('newBtn').onclick = async () => {
+  const ok = await modal('הזמנה חדשה', 'להתחיל מחדש? הטקסטים, הצבעים והתמונה יחזרו לברירת המחדל. מה שלא נשמר ב"ההזמנות שלי" יאבד.', [['כן, חדשה', 1, 'primary'], ['ביטול', 0]]);
+  if (!ok) return;
+  const t = TEMPLATES[S.tpl];
+  S.values[S.tpl] = Object.fromEntries(t.fields.map(f => [f[0], f[3]]));
+  S.fx[S.tpl] = {}; S.custom[S.tpl] = null; S.bg[S.tpl] = t.defBg; S.colW = 100; S.credit = '';
+  S.photo = null; photoData = null; resetPos(); S.name = ''; S.docId = null;
+  buildUI(); update();
+};
+
 /* הפעלה */
 $('hdrLogo').src = logoImg('lockup', C.black).src;
 const fontsReady = Promise.all(Object.values(F).map(f => document.fonts.load(`40px "${f}"`, 'אבג ABC 123'))).catch(() => {});
 Promise.all([fontsReady, preloadLogos()]).then(() => {
   measureAscents(out.getContext('2d'));
-  buildUI(); render(out, S.fmt);
+  buildUI(); update();
   window.__ready = true;
+  renderFontStatus(); restoreFonts();
 });
 /* אם גופן מסתיים להיטען מאוחר — מציירים מחדש */
-const refresh = () => { if (!window.__ready) return; measureAscents(out.getContext('2d')); render(out, S.fmt); };
+function refresh() { if (!window.__ready) return; measureAscents(out.getContext('2d')); update(); }
 document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', refresh);
 document.fonts.ready.then(refresh);
 window.__S = S; window.__render = render; window.__buildUI = buildUI;
