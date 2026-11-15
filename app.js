@@ -21,8 +21,8 @@ const BGS = {
   red:   { name:'אדום',   bg:C.red1,  fg:C.black, accent:C.white, tagBg:C.black, tagFg:C.white, logo:C.black, grid:C.white },
 };
 
+// לוגו TEXTILE אינו בשימוש עוד — רק החתימה התלת-לשונית העדכנית
 const LOGO_MODES = {
-  compact: 'TEXTILE + שנקר',
   full:    'חתימה תלת-לשונית',
 };
 
@@ -67,7 +67,7 @@ const TEMPLATES = {
 
 /* ---------- מצב ---------- */
 const S = {
-  tpl:'openday', fmt:'square', bg:{}, logo:'compact', grid:true, credit:'',
+  tpl:'openday', fmt:'square', bg:{}, logo:'full', grid:true, credit:'',
   values:{}, photo:null, dark:0.3,
   img:{ zoom:1, px:0, py:0, rot:0, flip:false, fit:'cover', op:1, blend:'source-over', gray:false, base:'#000000' },
 };
@@ -80,7 +80,7 @@ try {
   if (saved) {
     for (const k of ['tpl','fmt','logo','grid','credit','dark']) if (k in saved) S[k] = saved[k];
     if (saved.img) for (const k of ['fit','op','blend','gray','base']) if (k in saved.img) S.img[k] = saved.img[k];
-    if (!(S.logo in LOGO_MODES)) S.logo = 'compact';
+    if (!(S.logo in LOGO_MODES)) S.logo = 'full';
     if (saved.bg) Object.assign(S.bg, saved.bg);
     if (saved.values) for (const k in saved.values) if (S.values[k]) Object.assign(S.values[k], saved.values[k]);
   }
@@ -648,7 +648,7 @@ $('dlAll').onclick = async () => {
 };
 
 /* הפעלה */
-$('hdrLogo').src = logoImg('wordmark', C.black).src;
+$('hdrLogo').src = logoImg('lockup', C.black).src;
 const fontsReady = Promise.all(Object.values(F).map(f => document.fonts.load(`40px "${f}"`, 'אבג ABC 123'))).catch(() => {});
 Promise.all([fontsReady, preloadLogos()]).then(() => {
   measureAscents(out.getContext('2d'));
