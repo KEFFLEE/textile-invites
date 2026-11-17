@@ -33,16 +33,6 @@ const LOGO_MODES = {
 };
 
 const TEMPLATES = {
-  openday: {
-    name:'יום פתוח', bgs:['photo','grey','white','red','black'], defBg:'photo',
-    fields:[
-      ['title','כותרת','text','יום פתוח'],
-      ['subtitle','שורת משנה','text','במחלקה לעיצוב טקסטיל, שנקר'],
-      ['date','תאריך','text','28.7'],
-      ['details','פרטים (שעה, מקום)','area','יום שלישי | 16:00–20:00\nשנקר, אנה פרנק 12, רמת גן'],
-      ['tag','תגית אדומה (אפשר להשאיר ריק)','text','הכניסה חופשית'],
-    ],
-  },
   exhibition: {
     name:'תערוכה / פתיחה', bgs:['photo','grey','white','red','black'], defBg:'photo',
     fields:[
@@ -73,7 +63,7 @@ const TEMPLATES = {
 
 /* ---------- מצב ---------- */
 const S = {
-  tpl:'openday', fmt:'square', bg:{}, logo:'full', logoColor:'auto', grid:true, credit:'',
+  tpl:'exhibition', fmt:'square', bg:{}, logo:'full', logoColor:'auto', grid:true, credit:'',
   custom:{}, fx:{}, colW:100, name:'', docId:null,
   values:{}, photo:null, dark:0.3,
   img:{ zoom:1, px:0, py:0, rot:0, flip:false, fit:'cover', op:1, blend:'source-over', gray:false, base:'#000000' },
@@ -90,6 +80,7 @@ try {
     if (saved.fx) for (const k in saved.fx) if (S.fx[k]) Object.assign(S.fx[k], saved.fx[k]);
     if (saved.img) for (const k of ['fit','op','blend','gray','base']) if (k in saved.img) S.img[k] = saved.img[k];
     if (!(S.logo in LOGO_MODES)) S.logo = 'full';
+    if (!(S.tpl in TEMPLATES)) S.tpl = 'exhibition';
     if (saved.bg) Object.assign(S.bg, saved.bg);
     if (saved.values) for (const k in saved.values) if (S.values[k]) Object.assign(S.values[k], saved.values[k]);
   }
@@ -100,7 +91,7 @@ function stateOf() {
 function applyState(st) {
   for (const k of ['tpl','fmt','logo','logoColor','grid','credit','dark','colW']) if (k in st) S[k] = st[k];
   if (!(S.logo in LOGO_MODES)) S.logo = 'full';
-  if (!(S.tpl in TEMPLATES)) S.tpl = 'openday';
+  if (!(S.tpl in TEMPLATES)) S.tpl = 'exhibition';
   if (!(S.fmt in FORMATS)) S.fmt = 'square';
   if (st.img) Object.assign(S.img, st.img);
   for (const k of Object.keys(TEMPLATES)) {
