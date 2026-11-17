@@ -47,13 +47,26 @@ const TEMPLATES = {
     ],
   },
   submission: {
-    name:'הזמנה להגשה / מפגש מחלקתי', bgs:['grey','white','red','black'], defBg:'grey',
+    name:'הזמנה להגשה', bgs:['grey','white','red','black'], defBg:'grey',
     fields:[
       ['intro','פתיח','area','לסטודנטים/ות ולמרצים/ות המחלקה'],
       ['highlight','שורה מודגשת (אדום)','area','מוזמנים/ות להגשות פרויקט הגמר של מחזור תשפ״ז'],
       ['detail','פירוט','area','ההגשות יתקיימו במהלך תערוכת הבוגרות'],
       ['dates','תאריכים (שורה לכל יום)','area','יום שני 19.7\nיום שלישי 20.7\nיום חמישי 22.7'],
       ['hours','שעות','text','בין השעות 9:30–16:30'],
+      ['url','כתובת אתר','text','www.textileshenkar.com'],
+      ['dept','שם המחלקה','text','המחלקה לעיצוב טקסטיל, שנקר'],
+      ['tagline','שורת סיום קטנה','text','בואו להכיר עולם חדש, בואו לגעת בחומר'],
+    ],
+  },
+  meeting: {
+    name:'מפגש מחלקתי', bgs:['grey','white','red','black'], defBg:'grey',
+    fields:[
+      ['intro','פתיח','area','לסטודנטים/ות ולמרצים/ות המחלקה'],
+      ['highlight','שורה מודגשת (אדום)','area','מוזמנים/ות למפגש מחלקתי'],
+      ['detail','פירוט','area','נושא המפגש'],
+      ['dates','תאריך (שורה לכל יום)','area','יום רביעי 3.12'],
+      ['hours','שעות','text','בשעה 12:00'],
       ['url','כתובת אתר','text','www.textileshenkar.com'],
       ['dept','שם המחלקה','text','המחלקה לעיצוב טקסטיל, שנקר'],
       ['tagline','שורת סיום קטנה','text','בואו להכיר עולם חדש, בואו לגעת בחומר'],
@@ -541,7 +554,7 @@ function render(canvas, fmtKey) {
   const tpl = S.tpl, th = themeFor(tpl), v = S.values[tpl];
   CUR_TH = th;
   const g = geometry(fmt);
-  const layout = LAYOUTS[tpl];
+  const layout = LAYOUTS[tpl] || (tpl === 'meeting' && LAYOUTS.submission);
   // מוצאים קנה מידה שבו אין התנגשויות, ואז מציירים
   let s = 1;
   for (; s > 0.5; s -= 0.05) {
@@ -576,10 +589,10 @@ function buildUI() {
   if (!t.bgs.includes(S.bg[S.tpl])) S.bg[S.tpl] = t.defBg;
   chips($('bgChips'), t.bgs.map(k => [k, BGS[k].name]), S.bg[S.tpl], k => { S.bg[S.tpl] = k; buildUI(); update(); });
 
-  const usesPhoto = S.tpl === 'submission' || S.bg[S.tpl] === 'photo';
+  const usesPhoto = (S.tpl === 'submission' || S.tpl === 'meeting') || S.bg[S.tpl] === 'photo';
   $('photoArea').style.display = usesPhoto ? '' : 'none';
   $('photoCtl').hidden = !S.photo;
-  $('pDark').parentElement.style.display = S.tpl === 'submission' ? 'none' : '';
+  $('pDark').parentElement.style.display = (S.tpl === 'submission' || S.tpl === 'meeting') ? 'none' : '';
 
   buildFields(t);
   // צבעים מותאמים
@@ -674,7 +687,7 @@ function syncPhotoUI() {
 const imgSet = (k, v) => { S.img[k] = v; syncPhotoUI(); update(); };
 $('photoIn').onchange = e => { loadPhoto(e.target.files[0]); e.target.value = ''; };
 document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', e => { e.preventDefault(); if (S.tpl !== 'submission' && S.bg[S.tpl] !== 'photo') { S.bg[S.tpl] = 'photo'; } loadPhoto(e.dataTransfer.files[0]); });
+document.addEventListener('drop', e => { e.preventDefault(); if (S.tpl !== 'submission' && S.tpl !== 'meeting' && S.bg[S.tpl] !== 'photo') { S.bg[S.tpl] = 'photo'; } loadPhoto(e.dataTransfer.files[0]); });
 $('pZoom').oninput = e => imgSet('zoom', +e.target.value);
 $('pRot').oninput  = e => imgSet('rot', +e.target.value);
 $('pPx').oninput   = e => imgSet('px', +e.target.value);
