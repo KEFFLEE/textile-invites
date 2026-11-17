@@ -57,7 +57,7 @@ const TEMPLATES = {
     ],
   },
   submission: {
-    name:'הזמנה להגשה', bgs:['grey','white','red','black'], defBg:'grey',
+    name:'הזמנה להגשה / מפגש מחלקתי', bgs:['grey','white','red','black'], defBg:'grey',
     fields:[
       ['intro','פתיח','area','לסטודנטים/ות ולמרצים/ות המחלקה'],
       ['highlight','שורה מודגשת (אדום)','area','מוזמנים/ות להגשות פרויקט הגמר של מחזור תשפ״ז'],
