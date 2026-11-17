@@ -221,7 +221,7 @@ function makePainter(ctx, W, H, draw) {
   /* תגית עם הגדרות שדה */
   P.tagK = (k, text, fam, size, x, y, align, bg, fg) => {
     const f = fxOf(k), c = colorOpt(f.color);
-    return P.tag(text, f.font || fam, size * f.size, x, y, align, c || bg, c ? (lum(c) > 0.45 ? C.black : C.white) : fg);
+    return P.tag(text, fam, size * f.size, x, y, align, c || bg, c ? (lum(c) > 0.45 ? C.black : C.white) : fg);
   };
   P.logo = (key, color, x, y, h) => {
     const w = h * aspect(key);
@@ -535,7 +535,7 @@ const fxOf = k => Object.assign({ size:1, color:null, font:'' }, S.fx[S.tpl][k] 
 /* fit עם הגדרות השדה: גודל, פונט וצבע */
 function fitK(k, ctx, text, fam, maxSize, minSize, maxW, maxLines) {
   const f = fxOf(k);
-  const r = fit(ctx, text, f.font || fam, maxSize * f.size, minSize * Math.min(1, f.size), maxW, maxLines);
+  const r = fit(ctx, text, fam, maxSize * f.size, minSize * Math.min(1, f.size), maxW, maxLines);
   r.color = colorOpt(f.color);
   return r;
 }
@@ -609,21 +609,20 @@ function buildUI() {
   $('sizeHint').textContent = `${f.name} · ${f.w}x${f.h} פיקסלים` + (f.story ? ' · השוליים העליונים והתחתונים שמורים לממשק של אינסטגרם' : '');
 }
 
-/* שדות תוכן עם הגדרות עיצוב (גודל, צבע, פונט) */
+/* שדות תוכן עם הגדרות עיצוב (גודל, צבע) */
 const openFx = new Set();
 function buildFields(t) {
   const box = $('fields'); box.innerHTML = '';
   for (const [k, label, type] of t.fields) {
     const d = document.createElement('div'); d.className = 'field';
     const f = fxOf(k);
-    const isCustom = f.size !== 1 || f.color || f.font;
+    const isCustom = f.size !== 1 || f.color;
     if (openFx.has(S.tpl + k)) d.classList.add('open');
     if (isCustom) d.classList.add('custom');
     d.innerHTML = `<div class="fh"><span></span><button type="button">עיצוב${isCustom ? ' •' : ''}</button></div>
       <div class="fx">
         <label class="f"><span>גודל <b class="val"></b></span><input type="range" min="0.5" max="1.8" step="0.05"></label>
         <div class="sw"></div>
-        <select></select>
         <button class="btn small" type="button" data-reset>איפוס עיצוב השדה</button>
       </div>`;
     d.querySelector('.fh span').textContent = label;
@@ -647,10 +646,6 @@ function buildFields(t) {
       b.onclick = () => setFx('color', v || null);
       sw.appendChild(b);
     }
-    const sel = d.querySelector('select');
-    for (const [v, n] of FONT_OPTS) { const o = document.createElement('option'); o.value = v; o.textContent = n; sel.appendChild(o); }
-    sel.value = f.font || '';
-    sel.onchange = () => setFx('font', sel.value);
     d.querySelector('[data-reset]').onclick = () => { delete S.fx[S.tpl][k]; buildFields(t); update(); };
     box.appendChild(d);
   }
@@ -852,6 +847,7 @@ async function installFont(role, buf, name) {
   userFonts[role] = name; if (role === F.title) hasBlack = true;
 }
 function renderFontStatus() {
+  if (!$('fontStatus')) return;
   $('fontStatus').innerHTML = FONT_ROLES.map(([r, label]) => {
     let st;
     if (userFonts[r]) st = '<span class="ok">נטען מקובץ</span>';
@@ -868,7 +864,7 @@ async function restoreFonts() {
   } catch (e) {}
   renderFontStatus(); refresh();
 }
-$('fontIn').onchange = async e => {
+if ($('fontIn')) $('fontIn').onchange = async e => {
   let n = 0; const miss = [];
   for (const f of e.target.files) {
     const role = guessRole(f.name);
